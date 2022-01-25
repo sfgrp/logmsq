@@ -5,7 +5,6 @@ package nsqio
 import (
 	"errors"
 	"os"
-	"regexp"
 
 	nsq "github.com/nsqio/go-nsq"
 	"github.com/sfgrp/lognsq/config"
@@ -16,57 +15,52 @@ import (
 // If the same config is used for many different apps, all of them are able
 // to contribute their logs to the same namespace using nsqd.
 type nsqio struct {
-	cfg   config.Config
-	regex *regexp.Regexp
+	cfg config.Config
 	*nsq.Producer
 }
 
 // New Creates a new nsqio instance. If creation of "producer" failed, it
 // returns an error.
-func New(cfg config.Config) (l *nsqio, err error) {
-	var regex *regexp.Regexp
+func New(cfg config.Config) (n *nsqio, err error) {
 	var prod *nsq.Producer
 	if cfg.Topic == "" {
 		err = errors.New("config for nsqio cannot have an empty Topic field")
 		return nil, err
 	}
 
-	if cfg.Regex != "" {
-		regex, err = regexp.Compile(cfg.Regex)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	nsqCfg := nsq.NewConfig()
-	prod, err = nsq.NewProducer(cfg.NSQdAddr, nsqCfg)
+	prod, err = nsq.NewProducer(cfg.Address, nsqCfg)
 	if err != nil {
 		return nil, err
 	}
 
-	l = &nsqio{
+	n = &nsqio{
 		cfg:      cfg,
-		regex:    regex,
 		Producer: prod,
-	}
-	return l, err
-}
-
-// Write takes a slice of bytes and publishes it to STDERR as well as to
-// nsqd service. It uses Topic given in the config.
-func (l *nsqio) Write(bs []byte) (n int, err error) {
-	if l.cfg.StderrLogs {
-		n, err = os.Stderr.Write(bs)
-	}
-	if err == nil && l.regexOK(bs) {
-		err = l.Publish(l.cfg.Topic, bs)
 	}
 	return n, err
 }
 
+// Write takes a slice of bytes and publishes it to STDERR as well as to
+// nsqd service. It uses Topic given in the config.
+func (n *nsqio) Write(bs []byte) (num int, err error) {
+	if !n.regexOK(bs) {
+		return 0, nil
+	}
+
+	if n.cfg.StderrLogs {
+
+		num, err = os.Stderr.Write(append(bs, byte('\n')))
+	}
+	if err == nil && n.regexOK(bs) {
+		err = n.Publish(n.cfg.Topic, bs)
+	}
+	return num, err
+}
+
 func (n *nsqio) regexOK(bs []byte) bool {
-	if n.regex == nil {
+	if n.cfg.Regex == nil {
 		return true
 	}
-	return n.regex.Match(bs)
+	return n.cfg.Regex.Match(bs)
 }
