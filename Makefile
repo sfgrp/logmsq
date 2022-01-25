@@ -44,7 +44,7 @@ install:
 	$(GOCLEAN); \
 	$(FLAGS_SHARED) $(NO_C) $(GOINSTALL)
 
-release: dockerhub
+release:
 	cd lognsq; \
 	$(GOCLEAN); \
 	$(FLAGS_LINUX) $(NO_C) $(GOBUILD); \
@@ -59,15 +59,3 @@ release: dockerhub
 	$(FLAGS_WIN) $(NO_C) $(GOBUILD); \
 	zip -9 $(RELEASE_DIR)/lognsq-$(VER)-win-64.zip lognsq.exe; \
 	$(GOCLEAN);
-
-dc: build
-	docker-compose build;
-
-docker: build
-	docker build -t sfgrp/lognsq:latest -t sfgrp/lognsq:$(VERSION) .; \
-	cd lognsq; \
-	$(GOCLEAN);
-
-dockerhub: docker
-	docker push sfgrp/lognsq; \
-	docker push sfgrp/lognsq:$(VERSION)
