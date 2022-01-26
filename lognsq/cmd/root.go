@@ -23,7 +23,6 @@ package cmd
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 
@@ -38,10 +37,12 @@ import (
 // cfgData purpose is to achieve automatic import of data from the
 // environment variables, if they are given.
 type cfgData struct {
-	StderrLogs bool
 	Topic      string
 	Address    string
 	Regex      string
+	Contains   string
+	StderrLogs bool
+	Debug      bool
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -56,19 +57,22 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, _ []string) {
 		cfgd := getConf()
-		printFlag(cmd, cfgd)
 		topicFlag(cmd, cfgd)
 		addressFlag(cmd, cfgd)
 		regexFlag(cmd, cfgd)
+		containsFlag(cmd, cfgd)
+		printFlag(cmd, cfgd)
+		debugFlag(cmd, cfgd)
 		opts := getOpts(cfgd)
-		fmt.Printf("CFG: %#v\n\n", cfgd)
-		fmt.Printf("OPTS: %#v\n\n", opts)
 		cfg := config.New(opts...)
 		n, err := nsqio.New(cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		l := lognsq.New(n)
+		defer l.Stop()
+
 		processStdin(l)
 	},
 }
@@ -84,9 +88,11 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().StringP("topic", "t", "", "a topic to send to nsqd service (required).")
-	rootCmd.Flags().StringP("nsqd-tcp-address", "a", "", "the address of an nsqd service (e.g. `127.0.0.1:4150`).")
+	rootCmd.Flags().StringP("nsqd-tcp-address", "a", "", "the address of an nsqd service (`127.0.0.1:4150`).")
 	rootCmd.Flags().StringP("regex-filter", "r", "", "rejects all log messages that do not match the regex.")
+	rootCmd.Flags().StringP("contains-filter", "c", "", "log must contai (or not) a pattern (`api`, `!api`).")
 	rootCmd.Flags().BoolP("print-log", "p", false, "print logs to STDERR as well.")
+	rootCmd.Flags().BoolP("debug", "d", false, "prints filtered logs to STDOUT.")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -97,6 +103,7 @@ func initConfig() {
 	_ = viper.BindEnv("Topic", "LOG_NSQ_TOPIC")
 	_ = viper.BindEnv("NSQdAddr", "LOG_NSQ_ADDR")
 	_ = viper.BindEnv("Regex", "LOG_NSQ_REGEX")
+	_ = viper.BindEnv("Contains", "LOG_NSQ_CONTAINS")
 
 	viper.AutomaticEnv() // read in environment variables that match
 }
@@ -116,9 +123,6 @@ func getConf() *cfgData {
 // be overriden by command line flags.
 func getOpts(cfg *cfgData) []config.Option {
 	var opts []config.Option
-	if cfg.StderrLogs {
-		opts = append(opts, config.OptStderrLogs(true))
-	}
 	if cfg.Regex != "" {
 		opts = append(opts, config.OptRegex(cfg.Regex))
 	}
@@ -127,6 +131,15 @@ func getOpts(cfg *cfgData) []config.Option {
 	}
 	if cfg.Address != "" {
 		opts = append(opts, config.OptAddress(cfg.Address))
+	}
+	if cfg.Contains != "" {
+		opts = append(opts, config.OptContains(cfg.Contains))
+	}
+	if cfg.StderrLogs {
+		opts = append(opts, config.OptStderrLogs(true))
+	}
+	if cfg.Debug {
+		opts = append(opts, config.OptDebug(true))
 	}
 	return opts
 }

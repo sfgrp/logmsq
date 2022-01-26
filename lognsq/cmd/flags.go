@@ -23,6 +23,20 @@ func regexFlag(cmd *cobra.Command, cfgd *cfgData) {
 	}
 }
 
+func containsFlag(cmd *cobra.Command, cfgd *cfgData) {
+	s, _ := cmd.Flags().GetString("contains-filter")
+	if s != "" {
+		cfgd.Contains = s
+	}
+}
+
+func debugFlag(cmd *cobra.Command, cfgd *cfgData) {
+	b, _ := cmd.Flags().GetBool("debug")
+	if b {
+		cfgd.Debug = true
+	}
+}
+
 func printFlag(cmd *cobra.Command, cfgd *cfgData) {
 	b, _ := cmd.Flags().GetBool("print-log")
 	if b {
