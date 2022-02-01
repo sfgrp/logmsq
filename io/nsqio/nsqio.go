@@ -12,6 +12,7 @@ import (
 
 	gonsq "github.com/nsqio/go-nsq"
 	"github.com/sfgrp/lognsq/config"
+	"github.com/sfgrp/lognsq/ent/nsq"
 )
 
 // nsqio creates a "producer" to the nsqd service. The producer is able to
@@ -25,7 +26,7 @@ type nsqio struct {
 
 // New Creates a new nsqio instance. If creation of "producer" failed, it
 // returns an error.
-func New(cfg config.Config) (n *nsqio, err error) {
+func New(cfg config.Config) (n nsq.NSQ, err error) {
 	var prod *gonsq.Producer
 	if cfg.Topic == "" {
 		err = errors.New("config for nsqio cannot have an empty Topic field")
